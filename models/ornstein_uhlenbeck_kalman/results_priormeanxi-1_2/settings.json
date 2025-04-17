@@ -1,0 +1,22 @@
+{
+ "xi_prior_mean": -1.2,
+ "random_seed": 123,
+ "niterations": 200000,
+ "mu_prior": [
+  0.0,
+  1.5,
+  0.0
+ ],
+ "path_data": "/home/henhagg/Documents/semple_mem/models/ornstein_uhlenbeck_kalman/src/../../ornstein_uhlenbeck_unperturbed_noise/num_observation_40/observations.csv",
+ "alpha_prior": [
+  6.0,
+  6.0,
+  6.0
+ ],
+ "beta_prior": [
+  2.0,
+  1.0,
+  2.0
+ ],
+ "xi_prior_sd": 1.0
+}
