@@ -277,7 +277,7 @@ semple_mem_only_random_effects = function(num_priorpred_samples,
       sim_data = array(NA, dim = c(dim_data, M, num_gibbs_samples))
       for (i in 1:M) {
         for (j in 1:num_gibbs_samples) {
-          sim_data[, i, j] = model(ind_param[, i, j], model_param)
+          sim_data[, i, j] = model(ind_param[, i, j], log_kappa_xi = NULL, model_param)
         }
       }
       
