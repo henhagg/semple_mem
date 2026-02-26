@@ -1,5 +1,3 @@
-import AdaptiveMCMC
-
 function take_mcmc_step!(adaptive_sampler, compute_ll::Function, compute_prior, iteration::Integer)::Nothing
     r, s = adaptive_sampler[:r], adaptive_sampler[:s]
     ll, chain = adaptive_sampler[:ll], adaptive_sampler[:chain]
