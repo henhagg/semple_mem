@@ -8,24 +8,25 @@ library(progress)
 library(adaptMCMC)
 library(cmdstanr)
 
-source("algorithm/semple_mem.R")
+source(file.path("algorithm", "semple_mem.R"))
 
+# mRNA model with real data
 run_inference(
   model_name = "mrna_indep_prior",
   observation_name = "egfp_40ind",
-  num_priorpred_samples = 10000,
-  num_surrogate_post_samples = 1000,
+  num_priorpred_samples = 50000,
+  num_surrogate_post_samples = 1250,
   num_gibbs_samples = 1000,
-  num_rounds = 2,
-  K_start = 5,
-  mixprob_thresh = 0.005,
+  num_rounds = 4,
+  K_start = 9,
+  mixprob_thresh = 0,
   cov_structure = "",
   gllim_maxiter = 300,
   factor_cvMH = 1,
-  burnin_ind_param = 10,
+  burnin_ind_param = 0,
   burnin_kappa_xi = 0,
   mvn_package = "mvnfast",
-  subfolder = "K5",
+  subfolder = "R4_1ksamples_21_11",
   alg_version = "unperturbed_kappa_xi",
   random_seed = 1,
   parallelize_ind_param_MH = FALSE,

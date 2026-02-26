@@ -8,7 +8,7 @@ library(progress)
 library(adaptMCMC)
 library(cmdstanr)
 
-source("algorithm/semple_mem.R")
+source(file.path("algorithm", "semple_mem.R"))
 
 run_inference(
   model_name = "mrna_indep_prior",
