@@ -1,0 +1,78 @@
+{
+ "bic_values":[
+  7960135.36288783,
+  7528667.87916131,
+  7507046.60003933,
+  7037055.16073744,
+  6973359.45698375,
+  6997705.7525155,
+  6957385.41422259,
+  6910967.6569851,
+  6880834.7109175,
+  6952659.63084808,
+  6893061.00895103
+ ],
+ "cov_structure":"",
+ "dim_eta": 6,
+ "dim_ind_param": 3,
+ "dim_kappa_xi": 1,
+ "dim_xi": 1,
+ "gllim_verb": 1,
+ "K": 12,
+ "K_values":[
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12
+ ],
+ "kappa_xi_exists": true,
+ "model_name":"ornstein_uhlenbeck_unperturbed_noise",
+ "model_param":{
+  "tt":  10,
+  "dim_data":  51,
+  "x0":  0
+ },
+ "num_priorpred_samples": 50000,
+ "output_dir":"results/ornstein_uhlenbeck_unperturbed_noise/bic/50k_2-12",
+ "output_subfolder":"50k_2-12",
+ "parallelize_simulations": false,
+ "prior_alpha":[
+  6,
+  6,
+  6
+ ],
+ "prior_beta":[
+  2,
+  1,
+  2
+ ],
+ "prior_mean_mu":[
+  0,
+  1.5,
+  0
+ ],
+ "prior_mean_xi": -1,
+ "prior_sd_xi": 1,
+ "random_seed": 1,
+ "start_time": 1759133622.91114,
+ "time_vec":[
+  9.26252579689026,
+  25.743515253067,
+  43.0550694465637,
+  84.8443648815155,
+  134.476139783859,
+  164.248752593994,
+  224.298384904861,
+  277.723357439041,
+  348.00917506218,
+  413.723309993744,
+  503.182015895844
+ ]
+}
