@@ -27,14 +27,21 @@ plot_ppc = function(input_dir,
     geom_line(data = observed_data_gathered,
               mapping = aes(x = time, y = value, colour = Observation)) +
     labs(x = "Time", y = "") +
+    theme_bw() +
     theme(
       legend.position = "none",
       axis.title = element_text(size = font_size_axis),
       axis.text = element_text(size = font_size_ticks)
     )
+
+  # create output directory if it doesn't exist
+  output_dir = file.path(input_dir, "plots")
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir)
+  }
   
   ggsave(
-    filename = file.path(input_dir, "plots", paste0("ppc_round", round_index, ".pdf")),
+    filename = file.path(output_dir, paste0("ppc_round", round_index, ".pdf")),
     width = pdf_width,
     height = pdf_height
   )
@@ -76,6 +83,7 @@ plot_ppc_individual = function(input_dir,
   if(!is.null(xlab)){
     p = p + xlab(xlab)
   }
+  p = p + theme_bw()
   # ggtitle(paste0("Posterior predictive check observation ", individual_index, ", algorithm round ", round_index))
   
   ggsave(

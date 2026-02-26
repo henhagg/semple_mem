@@ -57,7 +57,7 @@ plot_runtime_comparison = function(input_dir_fe,
     scale_x_continuous(breaks = num_individuals_re) +
     scale_y_continuous(breaks = round(seq(0, max(df$runtime), by = 40), 1)) +
     labs(x = "Number of individuals (M)", y = "Run-time [minutes]", colour = "Algorithm version") +
-    theme_classic() +
+    theme_bw() +
     theme(legend.position = c(0.28, 0.8),
           axis.title = element_text(size = 10),
           legend.text = element_text(size = 10))
@@ -79,8 +79,8 @@ plot_runtime_comparison = function(input_dir_fe,
     )) +
     scale_x_continuous(breaks = num_individuals_re) +
     # scale_y_continuous(breaks = round(seq(0, max(df$runtime), by = 40), 1)) +
-    labs(x = "Number of individuals (M)", y = "", title = "Run-time ratio fixed-effects/random-effects") +
-    theme_classic() +
+    labs(x = "Number of individuals (M)", y = "", title = "Run-time fixed-effects/random-effects") +
+    theme_bw() +
     theme(legend.position = c(0.28, 0.8),
           axis.title = element_text(size = 10),
           legend.text = element_text(size = 10),
@@ -88,23 +88,3 @@ plot_runtime_comparison = function(input_dir_fe,
   
   ggsave("results/runtime_ratio.pdf", width = 3.8, height = 2.2)
 }
-
-plot_runtime_comparison(
-  input_dir_fe = c(
-    "results/mrna_indep_prior/10ind/K10",
-    "results/mrna_indep_prior/40ind/K10",
-    "results/mrna_indep_prior/100ind/K10",
-    "results/mrna_indep_prior/200ind/K10",
-    "results/mrna_indep_prior/400ind/K10"
-  ),
-  num_individuals_fe = c(10, 40, 100, 200, 400),
-  input_dir_re = c(
-    "results/mrna_indep_prior_only_individual_param/10ind/K10",
-    "results/mrna_indep_prior_only_individual_param/40ind/K10",
-    "results/mrna_indep_prior_only_individual_param/100ind/K10",
-    "results/mrna_indep_prior_only_individual_param/200ind/K10",
-    "results/mrna_indep_prior_only_individual_param/400ind/K10"
-  ),
-  num_individuals_re = c(10, 40, 100, 200, 400),
-  algorithm_round_index = 2
-)

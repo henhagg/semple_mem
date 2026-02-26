@@ -7,8 +7,10 @@ library(tidyr)
 library(dplyr)
 
 source(file.path("plot_scripts", "plot_ppc.R"), local = TRUE)
+source(file.path("plot_scripts", "compute_ppc.R"), local = TRUE)
 source(file.path("plot_scripts", "plot_kde_kalman_and_semple_with_prior.R"), local = TRUE)
-source(file.path("plot_scripts", "plot_kde_pepsdi_and_semple.R"), local = TRUE)
+source(file.path("plot_scripts", "plot_pepsdi_results.R"), local = TRUE)
+source(file.path("plot_scripts", "plot_runtime_comparison.R"), local = TRUE)
 
 plot_mc_separate_ind_param_from_csv = function(input_dir,
                                                round_index,
@@ -49,6 +51,7 @@ plot_mc_separate_ind_param_from_csv = function(input_dir,
     plot = ggplot(data = param %>% filter(id == individual_index)) +
       geom_line(mapping = aes(x = gibbs_cycle, y = !!param_name)) +
       labs(x = "Iteration", y = TeX(as.character(axis_labels[param_names[i]]))) +
+      theme_bw() +
       theme(text = element_text(size = fontsize))
     if(!is.null(true_ind_param)){
       plot = plot + geom_hline(aes(yintercept = true_ind_param[i, individual_index]),
@@ -115,12 +118,13 @@ plot_mc_shared_param = function(input_dir,
     plot = ggplot(param) +
       geom_line(mapping = aes(x = gibbs_cycle, y = !!param_name_sym)) +
       labs(x = "Iteration", y = TeX(as.character(axis_labels[param_names[i]]))) +
+      theme_bw() +
       theme(text = element_text(size = fontsize))
     if (true_param_exists) {
       plot = plot + geom_hline(aes(yintercept = as.numeric(true_param[param_names[i]])),
                                color = "red",
                                linetype = "dashed",
-                               linewidth = 1)
+                               linewidth = 1) # + labs(x = "Gibbs cycle", y = param_name_to_tex(param_names[i]))
     }
     
     
@@ -173,8 +177,10 @@ plot_kde_multiple_rounds = function(input_dir,
         group = !!round,
         color = !!round
       ), trim = trim) +
-      labs(x = TeX(as.character(axis_labels[param_names[i]])), y = "", color = "") +
-      scale_color_manual(labels = c("Prior samples", "Posterior samples"), values = c("#1B9E77", "#D95F02"))
+      labs(x = TeX(as.character(axis_labels[param_names[i]])), y = "", color = "")
+    if(length(rounds) == 2){
+      p = p + scale_color_manual(labels = c("Prior samples", "Posterior samples"), values = c("#1B9E77", "#D95F02"))
+    }
     if(!is.null(xlims)){
       p = p + xlim(xlims[[i]][1], xlims[[i]][2])
     }
@@ -186,10 +192,12 @@ plot_kde_multiple_rounds = function(input_dir,
         linetype = "dashed"
       )
     }
-    p = p + theme(plot.margin = margin(0, 0.2, 0, 0, "cm"),
-                  axis.title = element_text(size = 15, face = "bold"),
-                  legend.text = element_text(size = 10),
-                  axis.text = element_text(size = 10))
+    p <- p + theme_bw() + theme(
+      plot.margin = margin(0, 0.2, 0, 0, "cm"),
+      axis.title = element_text(size = 15, face = "bold"),
+      legend.text = element_text(size = 10),
+      axis.text = element_text(size = 10)
+    )
     return(p)
   })
   return(kde_plot_list)
@@ -236,6 +244,73 @@ plot_kde_multiple_param_multiple_rounds = function(input_dir,
     nrow = nrow
   ))
   dev.off()
+}
+
+plot_kde_all_param_single_round = function(input_dir, round, ncol = 2, save_plot = T) {
+  settings = rjson::fromJSON(file = file.path(input_dir, "settings.json"))
+  output_dir = file.path(input_dir, "plots")
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir)
+  }
+  
+  true_param = settings$true_param
+  
+  eta_param = read.csv(file.path(input_dir, paste0("eta_round", round, ".csv")))
+  eta_kde = plot_kde(eta_param, true_param)
+  
+  kappa_xi_param = read.csv(file.path(input_dir, paste0("kappa_xi_round", round, ".csv")))
+  kappa_xi_kde = plot_kde(kappa_xi_param, true_param)
+
+  if (save_plot) {
+    pdf(file.path(output_dir, paste0("kde_round", round, ".pdf")))
+    grid.arrange(grobs = c(eta_kde, kappa_xi_kde), ncol = ncol)
+    dev.off()
+  }
+  else {
+    grid.arrange(grobs = c(eta_kde, kappa_xi_kde), ncol = ncol)
+  }
+  
+}
+
+plot_kde_ind_param_single_round = function(input_dir,
+                                           round_index,
+                                           individual_indices,
+                                           pdf_width = 7,
+                                           pdf_height = 5) {
+  settings = rjson::fromJSON(file = file.path(input_dir, "settings.json"))
+  output_dir = file.path(input_dir, "plots")
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir)
+  }
+  
+  true_ind_param_file_path = file.path(dirname(settings$true_param_file_name), "ind_param.csv")
+  if (file.exists(true_ind_param_file_path)) {
+    true_ind_param = read.csv(true_ind_param_file_path)
+  } else {
+    true_ind_param = NULL
+  }
+  
+  for (individual_index in individual_indices) {
+    true_ind_param_list = as.list(true_ind_param[, individual_index])
+    num_param = length(true_ind_param_list)
+    names(true_ind_param_list) = paste0("c", 1:num_param)
+    ind_param = read.csv(file.path(input_dir, paste0(
+      "ind_param_round", round_index, ".csv"
+    )))
+    ind_param_kdes = plot_kde(
+      param = ind_param %>% dplyr::filter(id == individual_index) %>% dplyr::select(!c(gibbs_cycle, id)),
+      true_param = true_ind_param_list
+    )
+    
+    pdf(file.path(
+      output_dir,
+      paste0("kde_round", round_index, "_ind", individual_index, ".pdf")
+    ),
+    width = pdf_width,
+    height = pdf_height)
+    print(ggarrange(plotlist = ind_param_kdes, ncol = num_param))
+    dev.off()
+  }
 }
 
 plot_kde_ind_param_multiple_rounds = function(input_dir,
@@ -295,7 +370,8 @@ plot_kde_ind_param_multiple_rounds = function(input_dir,
         scale_color_manual(
           labels = c("Prior samples", "Posterior samples"),
           values = c("#1B9E77", "#D95F02")
-        )
+        ) + 
+        theme_bw()
       if (!is.null(true_ind_param)) {
         true_ind_param_list = as.list(true_ind_param[, individual_index])
         names(true_ind_param_list) = param_names
@@ -397,9 +473,17 @@ plot_bic_from_file = function(input_file,
                               save_to_file = FALSE,
                               pdf_width = NA,
                               pdf_height = NA) {
-  bic_data = read.csv(file = input_file)
-  ggplot(bic_data, aes(x = K, y = BIC)) + geom_line() + geom_point()
-  
+  bic_data <- read.csv(file = input_file)
+  ggplot(bic_data, aes(x = K, y = BIC)) +
+    geom_line() +
+    geom_point() +
+    theme_bw() +
+    theme(
+      axis.title = element_text(size = 15, face = "bold"),
+      legend.text = element_text(size = 10),
+      axis.text = element_text(size = 10)
+    )
+
   if (save_to_file) {
     ggsave(
       filename = file.path(dirname(input_file), "bic.pdf"),
@@ -409,187 +493,345 @@ plot_bic_from_file = function(input_file,
   }
 }
 
+
 ######################## BIC PLOTS ##########################
-# plot_bic_from_file(
-#   input_file = "results/ornstein_uhlenbeck_unperturbed_noise/bic/10k/bic.csv",
-#   save_to_file = TRUE,
-#   pdf_width = 3.5,
-#   pdf_height = 2
-# )
-# 
-# plot_bic_from_file(
-#   input_file = "results/mrna_fix_tzero/bic/50k/bic.csv",
-#   save_to_file = TRUE,
-#   pdf_width = 3.5,
-#   pdf_height = 2
-# )
-# 
-# plot_bic_from_file(
-#   input_file = "results/mrna_indep_prior/bic/10k/bic.csv",
-#   save_to_file = TRUE,
-#   pdf_width = 3.5,
-#   pdf_height = 2
-# )
+# Fig. B1a
+plot_bic_from_file(
+  input_file = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "bic", "50k_2-12", "bic.csv"),
+  save_to_file = TRUE,
+  pdf_width = 3.5,
+  pdf_height = 2
+)
+
+# Fig. B1b
+plot_bic_from_file(
+  input_file = file.path("results", "mrna_fix_tzero", "bic", "50k_2-10", "bic.csv"),
+  save_to_file = TRUE,
+  pdf_width = 3.5,
+  pdf_height = 2
+)
+
+# Fig. B1c
+plot_bic_from_file(
+  input_file = file.path("results", "mrna_indep_prior", "bic", "50k", "bic.csv"),
+  save_to_file = TRUE,
+  pdf_width = 3.5,
+  pdf_height = 2
+)
 
 ########### ORNSTEIN-UHLENBECK #############
-# plot_kde_kalman_and_semple_with_prior(
-#   input_dir_semple = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#   kalman_samples_file = "models/ornstein_uhlenbeck_kalman/results_priormeanxi-1_2/kalman_post_samples_full.csv",
-#   burnin_kalman = 100000,
-#   thinning_kalman = 10,
-#   xlims = list(c(-2,2), c(0, 3), c(-2, 2), NULL, NULL, NULL, c(-3,0)),
-#   ylims = list(NULL, NULL, NULL, NULL, NULL, NULL, c(0,5)),
-#   pdf_width = 4,
-#   pdf_height = 7,
-#   font_size_axis = 15,
-#   font_size_legend = 10,
-#   ncol = 2,
-#   nrow = 4
-# )
-# plot_ppc(input_dir = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#          round_index = 2,
-#          pdf_width = 3,
-#          pdf_height = 2,
-#          font_size_axis = 9,
-#          font_size_ticks = 9)
-# plot_mc_shared_param(
-#   input_dir = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#   param_type = "kappa_xi",
-#   round_index =  2
-# )
-# plot_mc_shared_param(
-#   input_dir = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#   param_type = "eta",
-#   round_index =  2
-# )
-# plot_mc_separate_ind_param_from_csv(
-#   input_dir = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#   round_index = 2,
-#   individual_index = 1
-# )
-# plot_kde_ind_param_multiple_rounds(
-#   input_dir = "results/ornstein_uhlenbeck_unperturbed_noise/num_observation_40/10k_samples_hmc",
-#   individual_indices = 1:5,
-#   xlims = NULL,
-#   round_index = 2,
-#   pdf_width = 4.5,
-#   pdf_height = 2
-# )
+# Fig. 2
+plot_kde_kalman_and_semple_with_prior(
+  input_dir_semple = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  semple_round = 4,
+  kalman_samples_file = file.path("models", "ornstein_uhlenbeck_kalman", "results_priormeanxi-1_2", "kalman_post_samples_full.csv"),
+  burnin_kalman = 150000,
+  thinning_kalman = 1,
+  xlims = list(c(-2,2), c(0, 3), c(-2, 2), NULL, NULL, NULL, c(-3,0)),
+  ylims = list(NULL, NULL, NULL, NULL, NULL, NULL, c(0,5)),
+  pdf_width = 4,
+  pdf_height = 7,
+  font_size_axis = 15,
+  font_size_legend = 10,
+  ncol = 2,
+  nrow = 4
+)
 
-############## MRNA REAL DATA KDE ONLY INDIVIDUAL PARAM ###############
-# plot_kde_multiple_param_multiple_rounds(
-#   input_dir = "results/mrna_indep_prior_only_individual_param/egfp_40ind/burnin10",
-#   param_types = c("eta"),
-#   xlims = list(eta = list(
-#     c(-4, 2),
-#     c(-8, 0),
-#     c(-4, 4),
-#     c(-2, 2),
-#     c(2, 8),
-#     c(-4, 5),
-#     c(1, 5),
-#     c(-4, 2),
-#     c(0, 25),
-#     c(0, 25),
-#     c(0, 25),
-#     c(0, 25),
-#     c(0, 25),
-#     c(0, 25),
-#     c(0, 40),
-#     c(0, 25)
-#   )),
-#   rounds = c(0, 2),
-#   ncol = 2,
-#   nrow = 8,
-#   pdf_width = 4,
-#   pdf_height = 10
+# Fig. 3
+# compute_ppc_single_round(
+#   input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+#   round_index = 4,
 # )
+plot_ppc(input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+         round_index = 4,
+         pdf_width = 3,
+         pdf_height = 2,
+         font_size_axis = 9,
+         font_size_ticks = 9
+)
 
-############## MRNA FIX TZERO WITH FIXED EFFECTS #############
-# plot_kde_pepsdi_and_semple(
-#   input_dir_semple = "results/mrna_fix_tzero/num_observation_40/10k_hmc_randomseed3_K10",
-#   semple_round_index = 2,
-#   input_dir_pepsdi = "../PEPSDI_results/40ind/attempt9_50ksamples/Npart1000_nsamp50000_corr0.99_exp_id1_run1",
-#   sample_indices_pepsdi = 1:50000,
-#   thinning_pepsdi = 5,
-#   include_semple_prior = TRUE,
-#   xlims = list(c(-2,1), c(-4,-2), c(-4,4), c(0,25), c(0,25), c(0,25), c(2,8), c(-4,5), c(1.5,2.5), c(-2,-1)),
-#   font_size_axis_label = 15,
-#   font_size_ticks = 8,
-#   pdf_width = 3.5,
-#   pdf_height = 7,
-#   ncol = 2,
-#   nrow = 5
-# )
-# plot_kde_ind_param_multiple_rounds(
-#   input_dir = "results/mrna_fix_tzero/num_observation_40/10k_hmc_randomseed3_K10",
-#   individual_indices = 1:5,
-#   xlims = list(c(-4, 2.5), c(-5, -1), c(-2,2)),
-#   round_index = 2,
-#   pdf_width = 4.5,
-#   pdf_height = 2
-# )
-# plot_mc_separate_ind_param_from_csv(
-#   input_dir = "results/mrna_fix_tzero/num_observation_40/10k_hmc_randomseed3_K10",
-#   round_index = 2,
-#   individual_index = 1
-# )
-# plot_mc_shared_param(
-#   input_dir = "results/mrna_fix_tzero/num_observation_40/10k_hmc_randomseed3_K10",
-#   param_type = "kappa_xi",
-#   round_index =  2
-# )
-# plot_mc_shared_param(
-#   input_dir = "results/mrna_fix_tzero/num_observation_40/10k_hmc_randomseed3_K10",
-#   param_type = "eta",
-#   round_index =  2
-# )
+# Fig. S4
+plot_kde_kalman_and_semple_multiround(
+  input_dir_semple = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  kalman_samples_file = file.path("models", "ornstein_uhlenbeck_kalman", "results_priormeanxi-1_2", "kalman_post_samples_full.csv"),
+  burnin_kalman = 150000,
+  thinning_kalman = 1,
+  semple_rounds = 2:4,
+  xlims = NULL,
+  ylims = NULL,
+  pdf_width = 7,
+  pdf_height = 7,
+  ncol = 3,
+  nrow = 3,
+  font_size_axis = 15,
+  font_size_legend = 10
+)
 
-############# MRNA REAL DATA FIXED EFFECTS ####################
-# plot_kde_multiple_param_multiple_rounds(
-#   input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#   param_types = c("eta", "kappa_xi"),
-#   xlims = list(
-#   eta = list(c(-4,2), c(-8,0), c(-4,4), c(-2,2), c(0, 25), c(0, 25), c(0, 25), c(0, 25)),
-#   kappa_xi = list(c(2, 8), c(-4, 5), c(1, 5), c(-4, 2))
-#   ),
-#   rounds = c(0, 2),
-#   ncol = 2,
-#   nrow = 6,
-#   pdf_width = 4,
-#   pdf_height = 8
+# Fig. S1
+plot_mc_shared_param(
+  input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  param_type = "kappa_xi",
+  round_index =  4
+)
+plot_mc_shared_param(
+  input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  param_type = "eta",
+  round_index =  4
+)
+
+# Fig. S2
+plot_mc_separate_ind_param_from_csv(
+  input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  round_index = 4,
+  individual_index = 1
+)
+
+# Fig. S3
+plot_kde_ind_param_multiple_rounds(
+  input_dir = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_40", "50k_samples_R4_seed1_HMC_attempt2"),
+  individual_indices = 1:5,
+  xlims = list(c(-3,2), c(0, 3.5), c(-3, 2)),
+  round_index = 4,
+  pdf_width = 4.5,
+  pdf_height = 2
+)
+
+# Fig. S5
+plot_kde_kalman_and_semple_with_prior(
+  input_dir_semple = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_20", "50k_samples_R4_HMC"),
+  kalman_samples_file = file.path("models", "ornstein_uhlenbeck_kalman", "results_20ind", "kalman_post_samples_full.csv"),
+  burnin_kalman = 0,
+  thinning_kalman = 1,
+  xlims = list(c(-2,1), c(1, 3), c(-2, 1), NULL, NULL, NULL, c(-2,-0.5)),
+  ylims = list(NULL, NULL, NULL, NULL, NULL, NULL, c(0,5)),
+  pdf_width = 5,
+  pdf_height = 5,
+  font_size_axis = 15,
+  font_size_legend = 10,
+  ncol = 3,
+  nrow = 3
+)
+
+# Fig. S6
+plot_kde_kalman_and_semple_with_prior(
+  input_dir_semple = file.path("results", "ornstein_uhlenbeck_unperturbed_noise", "num_observation_100", "50k_samples_R4_seed1_HMC_21_11"),
+  kalman_samples_file = file.path("models", "ornstein_uhlenbeck_kalman", "results_100ind", "kalman_post_samples_full.csv"),
+  burnin_kalman = 0,
+  thinning_kalman = 1,
+  xlims = list(c(-2,1), c(1, 3), c(-2, 1), NULL, NULL, NULL, c(-2,-0.5)),
+  ylims = list(NULL, NULL, NULL, NULL, NULL, NULL, c(0,5)),
+  pdf_width = 5,
+  pdf_height = 5,
+  font_size_axis = 15,
+  font_size_legend = 10,
+  ncol = 3,
+  nrow = 3
+)
+
+############## MRNA SIMULATED DATA (t_0 fixed) #############
+# Fig. 4
+plot_kde_pepsdi_and_semple(
+  input_dir_semple = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  semple_round_index = 4,
+  input_dir_pepsdi = file.path("results", "PEPSDI", "40ind", "attempt9_50ksamples", "Npart1000_nsamp50000_corr0.99_exp_id1_run1"),
+  sample_indices_pepsdi = 1:50000,
+  thinning_pepsdi = 1,
+  include_semple_prior = TRUE,
+  xlims = list(c(-2,1), c(-4,-2), c(-4,4), c(0,25), c(0,25), c(0,25), c(2,8), c(-4,5), c(1.5,2.5), c(-2,-1)),
+  font_size_axis_label = 15,
+  font_size_ticks = 8,
+  pdf_width = 3.5,
+  pdf_height = 7,
+  ncol = 2,
+  nrow = 5
+)
+
+# Fig. S12
+plot_kde_pepsdi_and_semple(
+  input_dir_semple = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_hmc_randomseed6_K7_0burnin_HMC_50ksamples_threshold0"),
+  semple_round_index = 2,
+  input_dir_pepsdi = file.path("results", "PEPSDI", "40ind", "attempt9_50ksamples", "Npart1000_nsamp50000_corr0.99_exp_id1_run1"),
+  sample_indices_pepsdi = 1:50000,
+  thinning_pepsdi = 1,
+  include_semple_prior = TRUE,
+  xlims = list(c(-2,1), c(-4,-2), c(-4,4), c(0,25), c(0,25), c(0,25), c(2,8), c(-4,5), c(1.5,2.5), c(-2,-1)),
+  font_size_axis_label = 15,
+  font_size_ticks = 8,
+  pdf_width = 3.5,
+  pdf_height = 7,
+  ncol = 2,
+  nrow = 5
+)
+
+# Fig. S10
+plot_kde_ind_param_multiple_rounds(
+  input_dir = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  individual_indices = 1:5,
+  xlims = list(c(-4, 2.5), c(-5, -1), c(-2,2)),
+  round_index = 4,
+  pdf_width = 4.5,
+  pdf_height = 2
+)
+
+# Fig. S8
+plot_mc_separate_ind_param_from_csv(
+  input_dir = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  round_index = 4,
+  individual_index = 1
+)
+
+# Fig. S7
+plot_mc_shared_param(
+  input_dir = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  param_type = "kappa_xi",
+  round_index =  4
+)
+plot_mc_shared_param(
+  input_dir = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  param_type = "eta",
+  round_index =  4
+)
+
+# Fig. S9
+plot_full_pepsdi_analysis(
+  input_dir = file.path("results", "PEPSDI", "40ind", "attempt9_50ksamples", "Npart1000_nsamp50000_corr0.99_exp_id1_run1"),
+  true_pop_param_list = list(
+    "mu1" = -0.694,
+    "mu2" = -3,
+    "mu3" = 0.027,
+    "kappa1" = 5.704,
+    "kappa2" = 0.751,
+    "kappa3" = 2.079,
+    "xi1" = -1.6,
+    "tau1" = 10,
+    "tau2" = 10,
+    "tau3" = 10
+  ),
+  observed_data_file = file.path("results", "PEPSDI", "40ind", "observations_pepsdi.csv")
+)
+
+# Fig. S11
+plot_kde_pepsdi_and_semple_multiround(
+  input_dir_semple = file.path("results", "mrna_fix_tzero", "num_observation_40", "50k_R4"),
+  semple_rounds = 2:4,
+  input_dir_pepsdi = file.path("results", "PEPSDI", "40ind", "attempt9_50ksamples", "Npart1000_nsamp50000_corr0.99_exp_id1_run1"),
+  sample_indices_pepsdi = 1:50000,
+  thinning_pepsdi = 1,
+  xlims = list(c(-1,0), c(-3.2,-2.5), c(-1,1), c(0,25), c(0,25), c(0,25), c(3.5,8), c(-1,3), c(2,2.25), c(-1.8,-1.4)),
+  font_size_axis_label = 15,
+  font_size_ticks = 8,
+  pdf_width = 7,
+  pdf_height = 7*3/4,
+  ncol = 4,
+  nrow = 3
+)
+
+# Fig. S13
+plot_kde_multiple_param_multiple_rounds(
+  input_dir = file.path("results", "mrna_indep_prior_only_individual_param", "200ind_precision1_all", "R4_10k_gibbs_21_11"),
+  param_types = c("eta"),
+  xlims = list(eta = list(
+    c(-2.5, 2),
+    c(-5, -1),
+    c(-1, 3),
+    c(-1, 2),
+    c(2, 8),
+    c(-2, 4),
+    c(1, 3),
+    c(-5,0),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10),
+    c(0, 10)
+  )),
+  rounds = c(0, 4)
+)
+
+############# MRNA REAL DATA ####################
+
+# Fig. 5
+# compute_ppc_single_round(
+#   input_dir = file.path("results", "mrna_indep_prior", "egfp_40ind", "R4_1ksamples_21_11"),
+#   round_index = 4,
 # )
-# plot_ppc(
-#   input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#   round_index = 2,
-#   pdf_width = 3,
-#   pdf_height = 2,
-#   font_size_axis = 9,
-#   font_size_ticks = 9
+plot_ppc(
+  input_dir = file.path("results", "mrna_indep_prior", "egfp_40ind", "R4_1ksamples_21_11"),
+  round_index = 4,
+  pdf_width = 3,
+  pdf_height = 2,
+  font_size_axis = 9,
+  font_size_ticks = 9
+)
+
+# Fig. S14
+# compute_ppc_individual_single_round(
+#   input_dir = file.path("results", "mrna_indep_prior", "egfp_40ind", "R4_1ksamples_21_11"),
+#   round_index = 4,
 # )
-# for(i in 1:5) {
-#   plot_ppc_individual(
-#     input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#     round_index = 2,
-#     individual_index = i,
-#     pdf_width = 3,
-#     pdf_height = 2,
-#     xlab = "Time (hours)",
-#     ylab = "Measurement"
-#   )
-# }
-# plot_mc_separate_ind_param_from_csv(
-#   input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#   round_index = 2,
-#   individual_index = 1
-# )
-# plot_mc_shared_param(
-#   input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#   param_type = "kappa_xi",
-#   round_index =  2
-# )
-# plot_mc_shared_param(
-#   input_dir = "results/mrna_indep_prior/egfp_40ind/K5",
-#   param_type = "eta",
-#   round_index =  2
-# )
+for(i in 1:5) {
+  plot_ppc_individual(
+    input_dir = file.path("results", "mrna_indep_prior", "egfp_40ind", "R4_1ksamples_21_11"),
+    round_index = 4,
+    individual_index = i,
+    pdf_width = 3,
+    pdf_height = 2,
+    xlab = "Time (hours)",
+    ylab = ""
+  )
+}
+
+# Fig. S15
+plot_kde_multiple_param_multiple_rounds(
+  input_dir = file.path("results", "mrna_indep_prior_only_individual_param", "egfp_40ind", "R4_10k_25_11"),
+  param_types = c("eta"),
+  xlims = list(eta = list(
+    c(-4, 2),
+    c(-8, 0),
+    c(-4, 4),
+    c(-2, 2),
+    c(2, 8),
+    c(-4, 5),
+    c(1, 3),
+    c(-5, -2),
+    c(0, 25),
+    c(0, 25),
+    c(0, 25),
+    c(0, 25),
+    c(0, 25),
+    c(0, 25),
+    c(0, 40),
+    c(0, 25)
+  )),
+  rounds = c(0, 4),
+  # ncol = 2,
+  # nrow = 8,
+  # pdf_width = 4,
+  # pdf_height = 10
+)
+
+############# RUNTIME COMPARISON ####################
+# Fig. 6 and 7 in main paper
+plot_runtime_comparison(
+  input_dir_fe = c(
+    file.path("results", "mrna_indep_prior", "10ind", "K10"),
+    file.path("results", "mrna_indep_prior", "40ind", "K10"),
+    file.path("results", "mrna_indep_prior", "100ind", "K10"),
+    file.path("results", "mrna_indep_prior", "200ind", "K10"),
+    file.path("results", "mrna_indep_prior", "400ind", "K10")
+  ),
+  num_individuals_fe = c(10, 40, 100, 200, 400),
+  input_dir_re = c(
+    file.path("results", "mrna_indep_prior_only_individual_param", "10ind", "K10"),
+    file.path("results", "mrna_indep_prior_only_individual_param", "40ind", "K10"),
+    file.path("results", "mrna_indep_prior_only_individual_param", "100ind", "K10"),
+    file.path("results", "mrna_indep_prior_only_individual_param", "200ind", "K10"),
+    file.path("results", "mrna_indep_prior_only_individual_param", "400ind", "K10")
+  ),
+  num_individuals_re = c(10, 40, 100, 200, 400),
+  algorithm_round_index = 2
+)
+
