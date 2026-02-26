@@ -74,7 +74,7 @@ run_inference = function(model_name,
   
   ########################## RUN ###################################
   if (alg_version == "unperturbed_kappa_xi") {
-    source("algorithm/alg_unperturbed_kappa_xi.R")
+    source(file.path("algorithm", "alg_unperturbed_kappa_xi.R"))
     output = gibbs_unperturbed_kappa_xi(
       num_priorpred_samples = num_priorpred_samples,
       num_surrogate_post_samples = num_surrogate_post_samples,
@@ -104,7 +104,7 @@ run_inference = function(model_name,
     )
     
   } else if (alg_version == "only_random_effects") {
-    source("algorithm/alg_only_random_effects.R")
+    source(file.path("algorithm", "alg_only_random_effects.R"))
     output = semple_mem_only_random_effects(
       num_priorpred_samples = num_priorpred_samples,
       num_surrogate_post_samples = num_surrogate_post_samples,
