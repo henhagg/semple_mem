@@ -2,7 +2,7 @@
 
 SeMPLE mixed-effects is a simulation‑based inference framework for stochastic nonlinear mixed‑effects models. It extends the SeMPLE methodology (see [henhagg/semple](https://github.com/henhagg/semple)) by learning surrogate models for the likelihood function and the posterior distribution of parameters in hierarchical systems.
 
-This repository contains the code accompanying version v2 of the the paper at https://arxiv.org/abs/2504.11279 (the current version, v1, will be updated soon).
+This repository contains the code accompanying the paper "Simulation-based inference for stochastic nonlinear mixed-effects models with applications in systems biology" published on Statistics and Computing https://doi.org/10.1007/s11222-026-10850-8.
 
 PEPSDI computations can be reproduced via the `gfp.jl` script in the PEPSDI fork [henhagg/PEPSDI](https://github.com/henhagg/PEPSDI).
 
